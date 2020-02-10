@@ -613,6 +613,7 @@ static SpvReflectResult ParseNodes(Parser* p_parser)
       case SpvOpTypeReserveId:
       case SpvOpTypeQueue:
       case SpvOpTypePipe:
+	  case SpvOpTypeAccelerationStructureNV:
       {
         CHECKED_READU32(p_parser, p_node->word_offset + 1, p_node->result_id);
         p_node->is_type = true;
@@ -1401,6 +1402,11 @@ static SpvReflectResult ParseType(Parser* p_parser, Node* p_node, Decorations* p
       }
       break;
 
+	  case SpvOpTypeAccelerationStructureNV: {
+		  p_type->type_flags |= SPV_REFLECT_TYPE_FLAG_EXTERNAL_ACCELERATION_STRUCTURE_NV;
+	  }
+							 break;
+
       case SpvOpTypeSampledImage: {
         p_type->type_flags |= SPV_REFLECT_TYPE_FLAG_EXTERNAL_SAMPLED_IMAGE;
         uint32_t image_type_id = (uint32_t)INVALID_VALUE;
@@ -1738,6 +1744,11 @@ static SpvReflectResult ParseDescriptorType(SpvReflectShaderModule* p_module)
       }
       break;
 
+	  case SPV_REFLECT_TYPE_FLAG_EXTERNAL_ACCELERATION_STRUCTURE_NV: {
+		  p_descriptor->descriptor_type = SPV_REFLECT_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV;
+	  }
+	break;
+
       case (SPV_REFLECT_TYPE_FLAG_EXTERNAL_SAMPLED_IMAGE | SPV_REFLECT_TYPE_FLAG_EXTERNAL_IMAGE): {
         // This is a workaround for: https://github.com/KhronosGroup/glslang/issues/1096
         if (p_descriptor->image.dim == SpvDimBuffer) {
@@ -1781,7 +1792,8 @@ static SpvReflectResult ParseDescriptorType(SpvReflectShaderModule* p_module)
 
       case SPV_REFLECT_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
         break;
-    }
+	  case SPV_REFLECT_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV: p_descriptor->resource_type = SPV_REFLECT_RESOURCE_FLAG_ACCELERATION_SRTUCTURE_NV; break;
+	}
   }
 
   return SPV_REFLECT_RESULT_SUCCESS;
@@ -2089,7 +2101,7 @@ static SpvReflectResult ParseFormat(
 )
 {
   SpvReflectResult result = SPV_REFLECT_RESULT_ERROR_INTERNAL_ERROR;
-  bool signedness = p_type->traits.numeric.scalar.signedness;
+  bool signedness = p_type->traits.numeric.scalar.signedness != 0U;
   if (p_type->type_flags & SPV_REFLECT_TYPE_FLAG_VECTOR) {
     uint32_t component_count = p_type->traits.numeric.vector.component_count;
     if (p_type->type_flags & SPV_REFLECT_TYPE_FLAG_FLOAT) {
@@ -2532,7 +2544,13 @@ static SpvReflectResult ParseEntryPoints(Parser* p_parser, SpvReflectShaderModul
       case SpvExecutionModelGeometry               : p_entry_point->shader_stage = SPV_REFLECT_SHADER_STAGE_GEOMETRY_BIT; break;
       case SpvExecutionModelFragment               : p_entry_point->shader_stage = SPV_REFLECT_SHADER_STAGE_FRAGMENT_BIT; break;
       case SpvExecutionModelGLCompute              : p_entry_point->shader_stage = SPV_REFLECT_SHADER_STAGE_COMPUTE_BIT; break;
-    }
+	  case SpvExecutionModelRayGenerationNV		   : p_entry_point->shader_stage = SPV_REFLECT_SHADER_STAGE_RAYGEN_BIT; break;
+	  case SpvExecutionModelAnyHitNV			   : p_entry_point->shader_stage = SPV_REFLECT_SHADER_STAGE_ANY_HIT_BIT; break;
+	  case SpvExecutionModelClosestHitNV		   : p_entry_point->shader_stage = SPV_REFLECT_SHADER_STAGE_CLOSEST_HIT_BIT; break;
+	  case SpvExecutionModelMissNV				   : p_entry_point->shader_stage = SPV_REFLECT_SHADER_STAGE_MISS_BIT; break;
+	  case SpvExecutionModelIntersectionNV		   : p_entry_point->shader_stage = SPV_REFLECT_SHADER_STAGE_INTERSECTION_BIT; break;
+	  case SpvExecutionModelCallableNV			   : p_entry_point->shader_stage = SPV_REFLECT_SHADER_STAGE_CALLABLE_BIT; break;
+	}
 
     ++entry_point_index;
 
